@@ -11,9 +11,9 @@
 
 ;; Created: Mon Sep  5 00:01:13 2011 (+0800)
 ;; Version: 0.1
-;; Last-Updated: Mon Sep  5 18:51:07 2011 (+0800)
+;; Last-Updated: Mon Sep  5 21:12:43 2011 (+0800)
 ;;           By: Le Wang
-;;     Update #: 18
+;;     Update #: 20
 ;; URL: https://github.com/lewang/e-sink
 ;; Keywords: server shell-integration
 ;; Compatibility: emacs 23+
@@ -50,6 +50,11 @@
 ;; For example to pipe diff output to a new buffer named "*| <diff>*"
 ;;
 ;;   $ diff old.txt new.txt | e-sink.pl diff
+;;
+;; For a faster implementation using a temporary file use the `-t' switch.
+;;
+;;   $ diff old.txt new.txt | e-sink.pl -t diff
+;;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -165,6 +170,16 @@
      "\n\n")
     )
   "e-sink session finished." )
+
+
+(defun e-sink-insert-and-finish (name file)
+  ""
+  (let ((buffer-name (e-sink-buffer-name-transform name)))
+    (with-current-buffer buffer-name
+      (goto-char (point-max))
+      (insert-file file)
+      (e-sink-finish name))))
+
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

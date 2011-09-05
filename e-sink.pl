@@ -4,10 +4,10 @@
 
 use strict;
 use warnings;
-use POSIX qw(ARG_MAX);
+use POSIX qw(ARG_MAX tmpnam);
 use IO::Select;
 
-use vars qw($EMACSCLIENT $BUFFER_TITLE);
+use vars qw($EMACSCLIENT $BUFFER_TITLE $TEMP_FILE $TEMP_FILE_H);
 
 sub esc_chars($) {
   # will change, for example, a!!a to a\!\!a
@@ -29,8 +29,12 @@ AARDVARK
 
 sub push_data_to_emacs($) {
   my ($data) = @_;
-  system($EMACSCLIENT, get_command_arr($data));
-  0 == $? || die "\nfailed to push data to Emacs";
+  if ($TEMP_FILE) {
+    print $TEMP_FILE_H $data;
+  } else {
+    system($EMACSCLIENT, get_command_arr($data));
+    0 == $? || die "\nfailed to push data to Emacs";
+  }
 }
 
 sub emacs_start_e_sink() {
@@ -41,13 +45,46 @@ AARDVARK
 }
 
 sub emacs_finish_e_sink() {
-  system($EMACSCLIENT, "--no-wait", "--eval", <<AARDVARK);
+  if ($TEMP_FILE) {
+    system($EMACSCLIENT, "--no-wait", "--eval", <<AARDVARK);
+(e-sink-insert-and-finish "$BUFFER_TITLE" "$TEMP_FILE")
+AARDVARK
+  } else {
+    system($EMACSCLIENT, "--no-wait", "--eval", <<AARDVARK);
 (e-sink-finish "$BUFFER_TITLE")
 AARDVARK
-0 == $? || die "\nunable to send finish tag.";
+  }
+  0 == $? || die "\nunable to send finish tag.";
+}
+
+sub print_help() {
+  print <<AARDVARK
+Usage: $0 [OPTION]... [buffer-name]
+
+  -t use temporary file instead of command-line to pass data
+  -h this screen
+
+AARDVARK
 }
 
 sub main() {
+
+  for my $i ( 0..$#ARGV ) {
+    if ( grep /$ARGV[$i]/, ("--help", "-h") ) {
+      print_help();
+      exit(0);
+    } elsif ( $ARGV[$i] eq "-t" ) {
+      $TEMP_FILE= tmpnam();
+      delete $ARGV[$i];
+    }
+  }
+  @ARGV= grep(defined, @ARGV);
+
+  if ( length(@ARGV) > 1) {
+    print STDERR "unexpected '$ARGV[1]'";
+    exit(1);
+  }
+
   ### start non-blocking read ASAP
   my $s = IO::Select->new;
   $s->add(\*STDIN);
@@ -59,10 +96,18 @@ sub main() {
   # A server-session can be started by "M-x server-start".
   emacs_start_e_sink();
 
-  my $temp= join('', get_command_arr(''));
-  my $arg_max= ARG_MAX - length($temp) - 1; # 1 for NULL string end
+  my $arg_max;
+
+  if ($TEMP_FILE) {
+    $arg_max= 100_000;            #
+  } else {
+    my $temp= join('', get_command_arr(''));
+    $arg_max= ARG_MAX - length($temp) - 1; # 1 for NULL string end
+  }
 
   my $data;
+  $TEMP_FILE and open($TEMP_FILE_H, ">$TEMP_FILE");
+
   while ( $s->can_read() ) {
     my $line= <STDIN>;
 
@@ -70,7 +115,9 @@ sub main() {
       last;
     }
 
-    $line= esc_chars( $line );
+    unless ($TEMP_FILE) {
+      $line= esc_chars( $line );
+    }
 
     if ( $data && ( length($data) + length($line) > $arg_max) ) {
       push_data_to_emacs( $data );
@@ -81,6 +128,7 @@ sub main() {
   }
 
   $data and push_data_to_emacs( $data );
+  $TEMP_FILE_H and close($TEMP_FILE_H);
   emacs_finish_e_sink;
   0;
 }
