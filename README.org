@@ -1,0 +1,9 @@
+* Purpose
+
+Pipe output of shell command into a Emacs buffer using emacsclient.
+
+* Requires:
+
+- Perl
+- Emacs 23+
+- emacs server to be started
