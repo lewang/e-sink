@@ -17,6 +17,7 @@ sub esc_chars($) {
   } else {
     die "why no str?";
   }
+  $str;
 }
 
 sub get_command_arr($) {
