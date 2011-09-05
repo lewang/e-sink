@@ -92,8 +92,8 @@ sub main() {
   $EMACSCLIENT= "emacsclient";
   $BUFFER_TITLE= ($ARGV[0]? $ARGV[0] : '');
 
-  # This script uses emacsclient, be sure to have a running server session.
-  # A server-session can be started by "M-x server-start".
+  close(STDOUT);                # getting output from Emacs might be confusing
+
   emacs_start_e_sink();
 
   my $arg_max;
