@@ -11,9 +11,9 @@
 
 ;; Created: Mon Sep  5 00:01:13 2011 (+0800)
 ;; Version: 0.1
-;; Last-Updated: Mon Sep  5 23:09:53 2011 (+0800)
+;; Last-Updated: Mon Sep  5 23:13:30 2011 (+0800)
 ;;           By: Le Wang
-;;     Update #: 22
+;;     Update #: 23
 ;; URL: https://github.com/lewang/e-sink
 ;; Keywords: server shell-integration
 ;; Compatibility: emacs 23+
@@ -43,8 +43,8 @@
 ;;    1. `e-sink.pl' tries to minimize invocations of "emacsclient" by
 ;;       maximizing the command-line buffer.
 ;;
-;;    2.  It also does non-blocking read from the source.  So the data source
-;;        doesn't hang there waiting for emacsclient invocations.
+;;    2. It also does non-blocking read from the source.  So the data source
+;;       doesn't hang there waiting for emacsclient invocations.
 ;;
 
 ;;; Usage:
