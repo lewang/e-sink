@@ -6,8 +6,9 @@ use strict;
 use warnings;
 use POSIX qw(ARG_MAX tmpnam);
 use IO::Select;
+use File::Spec;
 
-use vars qw($EMACSCLIENT $BUFFER_TITLE $TEMP_FILE $TEMP_FILE_H);
+use vars qw($EMACSCLIENT $BUFFER_TITLE $TEMP_FILE $TEMP_FILE_H $TEE $CPOUT);
 
 sub esc_chars($) {
   # will change, for example, a!!a to a\!\!a
@@ -20,40 +21,53 @@ sub esc_chars($) {
   $str;
 }
 
+sub system_no_stdout(\@) {
+  my ($params) = @_;
+  open($CPOUT, ">&STDOUT");
+  open(STDOUT, '>', File::Spec->devnull());
+  system @$params;
+  open(STDOUT, ">&$CPOUT");
+}
+
 sub get_command_arr($) {
   my ($data) = @_;
-  ('--no-wait', '--eval', <<AARDVARK)
+  ($EMACSCLIENT, '--no-wait', '--eval', <<AARDVARK)
 (e-sink-receive "$BUFFER_TITLE" "$data")
 AARDVARK
 }
 
 sub push_data_to_emacs($) {
   my ($data) = @_;
+  my @params= get_command_arr($data);
+
   if ($TEMP_FILE) {
     print $TEMP_FILE_H $data;
   } else {
-    system($EMACSCLIENT, get_command_arr($data));
+    system_no_stdout(@params);
     0 == $? || die "\nfailed to push data to Emacs";
   }
 }
 
 sub emacs_start_e_sink() {
-  system($EMACSCLIENT, "--no-wait", "--eval", <<AARDVARK);
+  my @arr= ($EMACSCLIENT, "--no-wait", "--eval", <<AARDVARK);
 (progn (require 'e-sink) (e-sink-start "${BUFFER_TITLE}"))
 AARDVARK
+  system_no_stdout(@arr);
   0 == $? || die "\nunable to open new frame\n\nconfirm emacs server started.";
 }
 
 sub emacs_finish_e_sink() {
+  my @arr;
   if ($TEMP_FILE) {
-    system($EMACSCLIENT, "--no-wait", "--eval", <<AARDVARK);
+    @arr= ($EMACSCLIENT, "--no-wait", "--eval", <<AARDVARK);
 (e-sink-insert-and-finish "$BUFFER_TITLE" "$TEMP_FILE")
 AARDVARK
   } else {
-    system($EMACSCLIENT, "--no-wait", "--eval", <<AARDVARK);
+    @arr= ($EMACSCLIENT, "--no-wait", "--eval", <<AARDVARK);
 (e-sink-finish "$BUFFER_TITLE")
 AARDVARK
   }
+  system_no_stdout(@arr);
   0 == $? || die "\nunable to send finish tag.";
 }
 
@@ -61,29 +75,43 @@ sub print_help() {
   print <<AARDVARK
 Usage: $0 [OPTION]... [buffer-name]
 
-  -t use temporary file instead of command-line to pass data
-  -h this screen
+  --tee output to STDOUT as well
+  --cmd use command-line instead of temporary file
+  -h    this screen
 
 AARDVARK
 }
 
-sub main() {
+sub process_args() {
+
+  $TEMP_FILE= tmpnam();
 
   for my $i ( 0..$#ARGV ) {
     if ( grep /$ARGV[$i]/, ("--help", "-h") ) {
       print_help();
       exit(0);
-    } elsif ( $ARGV[$i] eq "-t" ) {
-      $TEMP_FILE= tmpnam();
+    } elsif ( $ARGV[$i] eq "--tee" ) {
+      $TEE= 1;
       delete $ARGV[$i];
+    } elsif ( $ARGV[$i] eq "--cmd" ) {
+      $TEMP_FILE= undef;
+      delete $ARGV[$i]
+    } elsif ( $ARGV[$i] =~ /\A-/ ) {
+      print STDERR "unexpected option '$ARGV[$i]'\n";
+      exit(1);
     }
   }
   @ARGV= grep(defined, @ARGV);
 
   if ( scalar(@ARGV) > 1) {
-    print STDERR "unexpected '$ARGV[1]'";
+    print STDERR "unexpected '$ARGV[1]'\n";
     exit(1);
   }
+}
+
+sub main() {
+
+  process_args();
 
   ### start non-blocking read ASAP
   my $s = IO::Select->new;
@@ -92,7 +120,10 @@ sub main() {
   $EMACSCLIENT= "emacsclient";
   $BUFFER_TITLE= ($ARGV[0]? $ARGV[0] : '');
 
-  close(STDOUT);                # getting output from Emacs might be confusing
+  # autoflush
+  select(STDOUT);
+  $|= 1;
+
 
   emacs_start_e_sink();
 
@@ -114,6 +145,8 @@ sub main() {
     if ( ! $line ) {
       last;
     }
+
+    print $line if $TEE;
 
     unless ($TEMP_FILE) {
       $line= esc_chars( $line );
