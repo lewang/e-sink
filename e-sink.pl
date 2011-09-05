@@ -58,15 +58,18 @@ AARDVARK
   system_no_stdout(@arr);
 }
 
-sub emacs_finish_e_sink() {
+sub emacs_finish_e_sink($) {
+  my $signal= shift;
   my @arr;
+
+  $signal= $signal? "\"$signal\"" : "";
   if ($TEMP_FILE) {
     @arr= ($EMACSCLIENT, "--no-wait", "--eval", <<AARDVARK);
-(e-sink-insert-and-finish "$BUFFER_TITLE" "$TEMP_FILE")
+(e-sink-insert-and-finish "$BUFFER_TITLE" "$TEMP_FILE" $signal)
 AARDVARK
   } else {
     @arr= ($EMACSCLIENT, "--no-wait", "--eval", <<AARDVARK);
-(e-sink-finish "$BUFFER_TITLE")
+(e-sink-finish "$BUFFER_TITLE" $signal)
 AARDVARK
   }
   system_no_stdout(@arr);
@@ -136,8 +139,21 @@ sub main() {
     $arg_max= ARG_MAX - length($temp) - 1; # 1 for NULL string end
   }
 
-  my $data;
+  my ($data, $sig_name);
   $TEMP_FILE and open($TEMP_FILE_H, ">$TEMP_FILE");
+
+  my $handler= sub {
+    $sig_name= shift;
+    $s->remove(\*STDIN);
+    close(STDIN) or die "could not close STDIN";
+    # if we don't reopen STDIN, we get a warning: "Filehandle STDIN reopened as
+    # <> only for output." http://markmail.org/message/j76ed5ko3ouxtzl4
+    open(STDIN, "<", File::Spec->devnull());
+  };
+
+  for my $s qw(HUP INT PIPE TERM) {
+    $SIG{$s}= $handler;
+  }
 
   while ( $s->can_read() ) {
     my $line= <STDIN>;
@@ -147,7 +163,6 @@ sub main() {
     }
 
     print $line if $TEE;
-    close(STDIN);
 
     unless ($TEMP_FILE) {
       $line= esc_chars( $line );
@@ -163,7 +178,7 @@ sub main() {
 
   $data and push_data_to_emacs( $data );
   $TEMP_FILE_H and close($TEMP_FILE_H);
-  emacs_finish_e_sink;
+  emacs_finish_e_sink($sig_name);
   0;
 }
 

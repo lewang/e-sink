@@ -11,9 +11,9 @@
 
 ;; Created: Mon Sep  5 00:01:13 2011 (+0800)
 ;; Version: 0.1
-;; Last-Updated: Mon Sep  5 23:13:30 2011 (+0800)
+;; Last-Updated: Tue Sep  6 05:39:20 2011 (+0800)
 ;;           By: Le Wang
-;;     Update #: 23
+;;     Update #: 25
 ;; URL: https://github.com/lewang/e-sink
 ;; Keywords: server shell-integration
 ;; Compatibility: emacs 23+
@@ -160,7 +160,7 @@
     (insert data))
   (format "received %i characters." (length data)))
 
-(defun e-sink-finish (name)
+(defun e-sink-finish (name &optional signal)
   ""
   (setq name (e-sink-buffer-name-transform name))
   (with-current-buffer name
@@ -174,18 +174,22 @@
             (parts (e-sink-float-duration-to-parts (float-time duration)))
             (str (e-sink-format-duration parts)))
        str)
-     "\n\n")
-    )
-  "e-sink session finished." )
+     (if signal
+         (concat " "
+                 (propertize (format "{%s}" signal) 'face 'e-sink-marker-face)
+                 " caught")
+       "")
+     "\n\n"))
+  "e-sink session finished.")
 
 
-(defun e-sink-insert-and-finish (name file)
+(defun e-sink-insert-and-finish (name temp-file &optional signal)
   ""
   (let ((buffer-name (e-sink-buffer-name-transform name)))
     (with-current-buffer buffer-name
       (goto-char (point-max))
-      (insert-file file)
-      (e-sink-finish name))))
+      (insert-file temp-file)
+      (e-sink-finish name signal))))
 
 
 
