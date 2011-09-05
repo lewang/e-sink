@@ -80,7 +80,7 @@ sub main() {
   }
   @ARGV= grep(defined, @ARGV);
 
-  if ( length(@ARGV) > 1) {
+  if ( scalar(@ARGV) > 1) {
     print STDERR "unexpected '$ARGV[1]'";
     exit(1);
   }
