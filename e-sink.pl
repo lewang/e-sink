@@ -23,10 +23,14 @@ sub esc_chars($) {
 
 sub system_no_stdout(\@) {
   my ($params) = @_;
-  open($CPOUT, ">&STDOUT");
+  open($CPOUT, ">&", "STDOUT");
   open(STDOUT, '>', File::Spec->devnull());
-  system @$params;
-  open(STDOUT, ">&$CPOUT");
+  my $ret_val;
+  if (system @$params) {
+    die "\n system call with parameters @$params failed: $!";
+  }
+  open(STDOUT, ">&", $CPOUT);
+  $ret_val;
 }
 
 sub get_command_arr($) {
@@ -44,7 +48,6 @@ sub push_data_to_emacs($) {
     print $TEMP_FILE_H $data;
   } else {
     system_no_stdout(@params);
-    0 == $? || die "\nfailed to push data to Emacs";
   }
 }
 
@@ -53,7 +56,6 @@ sub emacs_start_e_sink() {
 (progn (require 'e-sink) (e-sink-start "${BUFFER_TITLE}"))
 AARDVARK
   system_no_stdout(@arr);
-  0 == $? || die "\nunable to open new frame\n\nconfirm emacs server started.";
 }
 
 sub emacs_finish_e_sink() {
@@ -68,7 +70,6 @@ AARDVARK
 AARDVARK
   }
   system_no_stdout(@arr);
-  0 == $? || die "\nunable to send finish tag.";
 }
 
 sub print_help() {
@@ -124,7 +125,6 @@ sub main() {
   select(STDOUT);
   $|= 1;
 
-
   emacs_start_e_sink();
 
   my $arg_max;
@@ -147,6 +147,7 @@ sub main() {
     }
 
     print $line if $TEE;
+    close(STDIN);
 
     unless ($TEMP_FILE) {
       $line= esc_chars( $line );
