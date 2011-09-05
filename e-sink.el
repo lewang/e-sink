@@ -11,9 +11,9 @@
 
 ;; Created: Mon Sep  5 00:01:13 2011 (+0800)
 ;; Version: 0.1
-;; Last-Updated: Mon Sep  5 21:12:43 2011 (+0800)
+;; Last-Updated: Mon Sep  5 23:09:53 2011 (+0800)
 ;;           By: Le Wang
-;;     Update #: 20
+;;     Update #: 22
 ;; URL: https://github.com/lewang/e-sink
 ;; Keywords: server shell-integration
 ;; Compatibility: emacs 23+
@@ -32,16 +32,19 @@
 
 ;;; Commentary:
 
-;; First of all this thing is slow.  So don't use it if you can help it.  Pipe
-;; to a file and use Emacs to view that file instead.
 ;;
-;; I have made a couple of optimizations to hopefully make it slightly faster:
+;; The following applies to the "--cmd" option, which was the default at the time.
 ;;
-;;  1. `e-sink.pl' tries to minimize invocations of "emacsclient" by
-;;     maximizing the command-line buffer.
+;;   First of all this thing is slow.  So don't use it if you can help it.  Pipe
+;;   to a file and use Emacs to view that file instead.
 ;;
-;;  2.  It also does non-blocking read from the source.  So the data source
-;;      doesn't hang there waiting for emacsclient invocations.
+;;   I have made a couple of optimizations to hopefully make it slightly faster:
+;;
+;;    1. `e-sink.pl' tries to minimize invocations of "emacsclient" by
+;;       maximizing the command-line buffer.
+;;
+;;    2.  It also does non-blocking read from the source.  So the data source
+;;        doesn't hang there waiting for emacsclient invocations.
 ;;
 
 ;;; Usage:
@@ -51,9 +54,13 @@
 ;;
 ;;   $ diff old.txt new.txt | e-sink.pl diff
 ;;
-;; For a faster implementation using a temporary file use the `-t' switch.
+;; For a slower operation, but not needing a temporary file:
 ;;
-;;   $ diff old.txt new.txt | e-sink.pl -t diff
+;;   $ diff old.txt new.txt | e-sink.pl --cmd diff
+;;
+;; To "tee" the output:
+;;
+;;   $ diff old.txt new.txt | e-sink.pl --tee diff
 ;;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
