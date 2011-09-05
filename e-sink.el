@@ -11,10 +11,10 @@
 
 ;; Created: Mon Sep  5 00:01:13 2011 (+0800)
 ;; Version: 0.1
-;; Last-Updated: Mon Sep  5 18:25:48 2011 (+0800)
+;; Last-Updated: Mon Sep  5 18:51:07 2011 (+0800)
 ;;           By: Le Wang
-;;     Update #: 17
-;; URL:
+;;     Update #: 18
+;; URL: https://github.com/lewang/e-sink
 ;; Keywords: server shell-integration
 ;; Compatibility: emacs 23+
 
