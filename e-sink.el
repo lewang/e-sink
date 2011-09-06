@@ -11,9 +11,9 @@
 
 ;; Created: Mon Sep  5 00:01:13 2011 (+0800)
 ;; Version: 0.1
-;; Last-Updated: Tue Sep  6 05:39:20 2011 (+0800)
+;; Last-Updated: Tue Sep  6 12:42:28 2011 (+0800)
 ;;           By: Le Wang
-;;     Update #: 25
+;;     Update #: 28
 ;; URL: https://github.com/lewang/e-sink
 ;; Keywords: server shell-integration
 ;; Compatibility: emacs 23+
@@ -176,8 +176,7 @@
        str)
      (if signal
          (concat " "
-                 (propertize (format "{%s}" signal) 'face 'e-sink-marker-face)
-                 " caught")
+                 (propertize (format "{SIG%s}" signal) 'face 'e-sink-marker-face))
        "")
      "\n\n"))
   "e-sink session finished.")

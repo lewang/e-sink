@@ -8,7 +8,25 @@ use POSIX qw(ARG_MAX tmpnam);
 use IO::Select;
 use File::Spec;
 
-use vars qw($EMACSCLIENT $BUFFER_TITLE $TEMP_FILE $TEMP_FILE_H $TEE $CPOUT);
+use vars qw($EMACSCLIENT $BUFFER_TITLE $TEMP_FILE $TEMP_FILE_H $TEE $CPOUT %SIG_NAME_TABLE $SIG_RECEIVED);
+
+sub exit_code_from_sig_name($) {
+  my $my_sig = shift;
+
+  return 0 unless $my_sig;
+
+  unless (%SIG_NAME_TABLE) {
+    use Config qw(%Config);
+    defined $Config{sig_name} || die "No sigs?";
+    my $i= 0;
+    foreach my $name (split(' ', $Config{sig_name})) {
+      $SIG_NAME_TABLE{$name} = $i;
+      $i++;
+    }
+  }
+
+  $SIG_NAME_TABLE{$my_sig}? $SIG_NAME_TABLE{$my_sig} + 128 : 128;
+}
 
 sub esc_chars($) {
   # will change, for example, a!!a to a\!\!a
@@ -58,11 +76,10 @@ AARDVARK
   system_no_stdout(@arr);
 }
 
-sub emacs_finish_e_sink($) {
-  my $signal= shift;
+sub emacs_finish_e_sink() {
   my @arr;
 
-  $signal= $signal? "\"$signal\"" : "";
+  my $signal= $SIG_RECEIVED? "\"$SIG_RECEIVED\"" : "";
   if ($TEMP_FILE) {
     @arr= ($EMACSCLIENT, "--no-wait", "--eval", <<AARDVARK);
 (e-sink-insert-and-finish "$BUFFER_TITLE" "$TEMP_FILE" $signal)
@@ -102,7 +119,7 @@ sub process_args() {
       delete $ARGV[$i]
     } elsif ( $ARGV[$i] =~ /\A-/ ) {
       print STDERR "unexpected option '$ARGV[$i]'\n";
-      exit(1);
+      exit exit_code_from_sig_name('EXIT');
     }
   }
   @ARGV= grep(defined, @ARGV);
@@ -139,11 +156,11 @@ sub main() {
     $arg_max= ARG_MAX - length($temp) - 1; # 1 for NULL string end
   }
 
-  my ($data, $sig_name);
+  my $data;
   $TEMP_FILE and open($TEMP_FILE_H, ">$TEMP_FILE");
 
   my $handler= sub {
-    $sig_name= shift;
+    $SIG_RECEIVED= shift;
     $s->remove(\*STDIN);
     close(STDIN) or die "could not close STDIN";
     # if we don't reopen STDIN, we get a warning: "Filehandle STDIN reopened as
@@ -178,8 +195,8 @@ sub main() {
 
   $data and push_data_to_emacs( $data );
   $TEMP_FILE_H and close($TEMP_FILE_H);
-  emacs_finish_e_sink($sig_name);
-  0;
+  emacs_finish_e_sink();
+  exit exit_code_from_sig_name($SIG_RECEIVED);
 }
 
 
