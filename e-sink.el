@@ -11,9 +11,9 @@
 
 ;; Created: Mon Sep  5 00:01:13 2011 (+0800)
 ;; Version: 0.2
-;; Last-Updated: Wed Sep  7 17:10:28 2011 (+0800)
+;; Last-Updated: Wed Sep  7 17:20:38 2011 (+0800)
 ;;           By: Le Wang
-;;     Update #: 60
+;;     Update #: 61
 ;; URL: https://github.com/lewang/e-sink
 ;; Keywords: server shell-integration
 ;; Compatibility: emacs 23+
@@ -162,7 +162,11 @@
         (progn
           (setq temp-file (if temp-file (make-temp-file "e-sink")))
           (push `(:temp-file . ,temp-file) e-sink-data-alist)
-          (push '(:temp-file-pos . 0) e-sink-data-alist)
+;; <<<<<<< Le : *old code* >>>>>>>>>>>
+;;           (push '(:temp-file-pos . 0) e-sink-data-alist)
+;; =======  *test code* ==============
+          (push `(:temp-file-pos . ,(+ 0 0)) e-sink-data-alist)
+;; >>>>>>> *end* <<<<<<<<<<<<<<<<<<<<<
           ;; if we use the intervaled timers, then we could get race
           ;; conditions and all kinds of weirdness.
           ;;
