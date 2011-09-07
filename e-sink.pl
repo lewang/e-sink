@@ -4,7 +4,6 @@
 
 use strict;
 use warnings;
-use POSIX qw(ARG_MAX tmpnam);
 use IO::Select;
 use File::Spec;
 
@@ -32,7 +31,7 @@ sub esc_chars($) {
   # will change, for example, a!!a to a\!\!a
   my ($str) = @_;
   if ($str) {
-    $str =~ s/([\\;<>\*\|`&\$!#\(\)\[\]\{\}:'"])/\\$1/g;
+    $str =~ s<([\\;<>\*\|`&\$!#\(\)\[\]\{\}:'"])><\\$1>g;
   } else {
     die "why no str?";
   }
@@ -45,50 +44,65 @@ sub system_no_stdout(\@) {
   open(STDOUT, '>', File::Spec->devnull());
   my $ret_val;
   if (system @$params) {
-    die "\n system call with parameters @$params failed: $!";
+    die "\n system call with parameters @$params failed: \n\n$!";
   }
   open(STDOUT, ">&", $CPOUT);
   $ret_val;
 }
 
-sub get_command_arr($) {
+sub get_command_arr(\$) {
   my ($data) = @_;
   ($EMACSCLIENT, '--no-wait', '--eval', <<AARDVARK)
-(e-sink-receive "$BUFFER_TITLE" "$data")
+(e-sink-receive "$BUFFER_TITLE" "$$data")
 AARDVARK
 }
 
-sub push_data_to_emacs($) {
+sub push_data_to_emacs(\$) {
   my ($data) = @_;
-  my @params= get_command_arr($data);
+  my @params= get_command_arr($$data);
 
   if ($TEMP_FILE) {
-    print $TEMP_FILE_H $data;
+    print $TEMP_FILE_H $$data;
   } else {
     system_no_stdout(@params);
   }
 }
 
 sub emacs_start_e_sink() {
-  my @arr= ($EMACSCLIENT, "--no-wait", "--eval", <<AARDVARK);
-(progn (require 'e-sink) (e-sink-start "${BUFFER_TITLE}"))
+  my $elisp= <<AARDVARK;
+  (e-sink-start "${BUFFER_TITLE}" $TEMP_FILE)
 AARDVARK
-  system_no_stdout(@arr);
+
+  if ($TEMP_FILE) {
+    $elisp =~ s<([\"\$])><\\$1>g;
+    $elisp= "\"$elisp\"";
+    my @arr= ($EMACSCLIENT, "--no-wait", "--eval", $elisp);
+    my $str= join(' ', @arr);
+
+    ## initialize $TEMP_FILE from Emacs output
+    $TEMP_FILE=`$str`;
+    if ($? == 0) {
+      $TEMP_FILE =~ /.*"([^"]+)".*/;
+      $TEMP_FILE = $1;
+      print "debug \$TEMP_FILE is '$TEMP_FILE'";
+    } else {
+      die "$str returned with: $!"
+    }
+  } else {
+    my @arr= ($EMACSCLIENT, "--no-wait", "--eval", $elisp);
+    system_no_stdout(@arr);
+  }
 }
 
 sub emacs_finish_e_sink() {
   my @arr;
 
-  my $signal= $SIG_RECEIVED? "\"$SIG_RECEIVED\"" : "";
-  if ($TEMP_FILE) {
-    @arr= ($EMACSCLIENT, "--no-wait", "--eval", <<AARDVARK);
-(e-sink-insert-and-finish "$BUFFER_TITLE" "$TEMP_FILE" $signal)
+  my $signalStr= $SIG_RECEIVED? "\"$SIG_RECEIVED\"" : "";
+
+  @arr= ($EMACSCLIENT, "--no-wait", "--eval", <<AARDVARK);
+(e-sink-finish "$BUFFER_TITLE" $signalStr)
 AARDVARK
-  } else {
-    @arr= ($EMACSCLIENT, "--no-wait", "--eval", <<AARDVARK);
-(e-sink-finish "$BUFFER_TITLE" $signal)
-AARDVARK
-  }
+
   system_no_stdout(@arr);
 }
 
@@ -105,7 +119,7 @@ AARDVARK
 
 sub process_args() {
 
-  $TEMP_FILE= tmpnam();
+  $TEMP_FILE= 1;
 
   for my $i ( 0..$#ARGV ) {
     if ( grep /$ARGV[$i]/, ("--help", "-h") ) {
@@ -115,7 +129,7 @@ sub process_args() {
       $TEE= 1;
       delete $ARGV[$i];
     } elsif ( $ARGV[$i] eq "--cmd" ) {
-      $TEMP_FILE= undef;
+      $TEMP_FILE= '';
       delete $ARGV[$i]
     } elsif ( $ARGV[$i] =~ /\A-/ ) {
       print STDERR "unexpected option '$ARGV[$i]'\n";
@@ -148,16 +162,23 @@ sub main() {
   emacs_start_e_sink();
 
   my $arg_max;
+  my $data= '';
 
   if ($TEMP_FILE) {
-    $arg_max= 100_000;            #
+    $arg_max= 1;                # write file asap so Emacs can update
+    open($TEMP_FILE_H, ">$TEMP_FILE");
+
+    # disable buffering: sacrifice performance for instant gratification
+    select $TEMP_FILE_H;
+    $|= 1;
+    select STDOUT;
+
   } else {
-    my $temp= join('', get_command_arr(''));
+    use POSIX qw(ARG_MAX);
+    my $garbage= '';
+    my $temp= join('', get_command_arr($garbage));
     $arg_max= ARG_MAX - length($temp) - 1; # 1 for NULL string end
   }
-
-  my $data;
-  $TEMP_FILE and open($TEMP_FILE_H, ">$TEMP_FILE");
 
   my $handler= sub {
     $SIG_RECEIVED= shift;

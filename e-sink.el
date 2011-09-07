@@ -10,10 +10,10 @@
 ;; Maintainer: Le Wang
 
 ;; Created: Mon Sep  5 00:01:13 2011 (+0800)
-;; Version: 0.1
-;; Last-Updated: Tue Sep  6 12:42:28 2011 (+0800)
+;; Version: 0.2
+;; Last-Updated: Wed Sep  7 17:10:28 2011 (+0800)
 ;;           By: Le Wang
-;;     Update #: 28
+;;     Update #: 60
 ;; URL: https://github.com/lewang/e-sink
 ;; Keywords: server shell-integration
 ;; Compatibility: emacs 23+
@@ -98,8 +98,12 @@
   :group 'e-sink)
 
 
-(defvar e-sink-started-alist nil
+(defvar e-sink-data-alist nil
   "")
+(make-variable-buffer-local 'e-sink-data-alist)
+
+(defvar s-sink-refresh-rate 2
+  "polling interval of temp file")
 
 (defun e-sink-float-duration-to-parts (time)
   "convert `time' in float seconds to a list (days hours minutes seconds_float)"
@@ -108,7 +112,7 @@
          (day-seconds (* 60 60 24))
          (hour-seconds (* 60 60))
          (minute-seconds 60))
-    (append (mapcar '(lambda (factor)
+    (append (mapcar (lambda (factor)
                        (prog1 (/ time-i factor)
                          (setq time-i (% time-i factor))))
                     (list day-seconds hour-seconds minute-seconds))
@@ -138,59 +142,89 @@
     (format "*| %s*" name)))
 
 ;;;###autoload
-(defun e-sink-start (name)
+(defun e-sink-start (name &optional temp-file)
   "start a new sink"
   (setq name (e-sink-buffer-name-transform name))
   (pop-to-buffer (get-buffer-create name))
-  (set-buffer name)
-  (unless (bolp) (insert "\n"))
-  (insert
-   (propertize "<<<<<" 'face 'e-sink-marker-face)
-   " start: "
-   (format-time-string "%Y-%m-%dT%H:%M:%S")
-   "\n")
-  (setq e-sink-started-alist (cons (cons name (current-time)) e-sink-started-alist))
-  "e-sink session started")
+  (with-current-buffer name
+    (if (cdr (assq :e-sink-in-progress e-sink-data-alist))
+        (error "Buffer '%s' has an active e-sink session.  Choose another." name)
+      (push '(:e-sink-in-progress t) e-sink-data-alist))
+    (goto-char (point-max))
+    (unless (bolp) (insert "\n"))
+    (insert
+     (propertize "<<<<<" 'face 'e-sink-marker-face)
+     " start: "
+     (format-time-string "%Y-%m-%dT%H:%M:%S")
+     "\n")
+    (push `(:start-time . ,(current-time)) e-sink-data-alist)
+    (if temp-file
+        (progn
+          (setq temp-file (if temp-file (make-temp-file "e-sink")))
+          (push `(:temp-file . ,temp-file) e-sink-data-alist)
+          (push '(:temp-file-pos . 0) e-sink-data-alist)
+          ;; if we use the intervaled timers, then we could get race
+          ;; conditions and all kinds of weirdness.
+          ;;
+          ;; So: just scheduke one and schedule the next one after it's done.
+          (push `(:timer . ,(run-at-time s-sink-refresh-rate nil 'e-sink-insert-from-temp name)) e-sink-data-alist)
+          temp-file)
+      "e-sink session started")))
 
 (defun e-sink-receive (name data)
   "receive some data"
   (setq name (e-sink-buffer-name-transform name))
   (with-current-buffer name
+    (unless (cdr (assq :e-sink-in-progress e-sink-data-alist))
+      (error "Buffer '%s' doesn't have an active e-sink session"))
     (goto-char (point-max))
     (insert data))
   (format "received %i characters." (length data)))
 
+(defun e-sink-insert-from-temp (transformed-buffer-name &optional no-reschedule)
+  "read some data from temp-file"
+  (with-current-buffer transformed-buffer-name
+    (unless (cdr (assq :e-sink-in-progress e-sink-data-alist))
+      (error "Buffer '%s' doesn't have an active e-sink session"))
+    (let ((pos-cons (assq :temp-file-pos e-sink-data-alist))
+          (timer-cons (assq :timer e-sink-data-alist)))
+      (goto-char (point-max))
+      (setcdr pos-cons
+              (+
+               (cdr pos-cons)
+               (cadr (insert-file-contents (cdr (assq :temp-file e-sink-data-alist)) nil (cdr pos-cons) nil))))
+      (goto-char (point-max))
+      (setcdr timer-cons (if no-reschedule
+                             nil
+                           (run-at-time s-sink-refresh-rate
+                                        nil
+                                        'e-sink-insert-from-temp
+                                        transformed-buffer-name))))))
+
 (defun e-sink-finish (name &optional signal)
-  ""
+  "finish e-sink session."
   (setq name (e-sink-buffer-name-transform name))
   (with-current-buffer name
-    (goto-char (point-max))
-    (unless (bolp) (insert "\n"))
-    (insert
-     (propertize "<<<<<" 'face 'e-sink-marker-face)
-     "   end: "
-     (let* ((start-time (cdr (assoc name e-sink-started-alist)))
-            (duration (time-subtract (current-time) start-time))
-            (parts (e-sink-float-duration-to-parts (float-time duration)))
-            (str (e-sink-format-duration parts)))
-       str)
-     (if signal
-         (concat " "
-                 (propertize (format "{SIG%s}" signal) 'face 'e-sink-marker-face))
-       "")
-     "\n\n"))
-  "e-sink session finished.")
-
-
-(defun e-sink-insert-and-finish (name temp-file &optional signal)
-  ""
-  (let ((buffer-name (e-sink-buffer-name-transform name)))
-    (with-current-buffer buffer-name
-      (goto-char (point-max))
-      (insert-file temp-file)
-      (e-sink-finish name signal))))
-
+    (let ((timer-cons (assq :timer e-sink-data-alist)))
+      (when timer-cons
+        (cancel-timer (cdr timer-cons))
+        (e-sink-insert-from-temp name 'no-reschedule))
+      (unless (bolp) (insert "\n"))
+      (insert
+       (propertize "<<<<<" 'face 'e-sink-marker-face)
+       "   end: "
+       (let* ((start-time (cdr (assq :start-time e-sink-data-alist)))
+              (duration (time-subtract (current-time) start-time))
+              (parts (e-sink-float-duration-to-parts (float-time duration)))
+              (str (e-sink-format-duration parts)))
+         str)
+       (if signal
+           (concat " "
+                   (propertize (format "{SIG%s}" signal) 'face 'e-sink-marker-face))
+         "")
+       "\n\n")
+      (push '(:e-sink-in-progress . nil) e-sink-data-alist))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; e-sink.el ends heree
+  ;; e-sink.el ends heree
