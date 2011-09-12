@@ -11,9 +11,9 @@
 
 ;; Created: Mon Sep  5 00:01:13 2011 (+0800)
 ;; Version: 0.2
-;; Last-Updated: Wed Sep  7 17:20:38 2011 (+0800)
+;; Last-Updated: Mon Sep 12 23:23:29 2011 (+0800)
 ;;           By: Le Wang
-;;     Update #: 61
+;;     Update #: 63
 ;; URL: https://github.com/lewang/e-sink
 ;; Keywords: server shell-integration
 ;; Compatibility: emacs 23+
@@ -150,7 +150,7 @@
   (with-current-buffer name
     (if (cdr (assq :e-sink-in-progress e-sink-data-alist))
         (error "Buffer '%s' has an active e-sink session.  Choose another." name)
-      (push '(:e-sink-in-progress t) e-sink-data-alist))
+      (push (cons :e-sink-in-progress t) e-sink-data-alist))
     (goto-char (point-max))
     (unless (bolp) (insert "\n"))
     (insert
@@ -158,21 +158,17 @@
      " start: "
      (format-time-string "%Y-%m-%dT%H:%M:%S")
      "\n")
-    (push `(:start-time . ,(current-time)) e-sink-data-alist)
+    (push (cons :start-time (current-time)) e-sink-data-alist)
     (if temp-file
         (progn
           (setq temp-file (if temp-file (make-temp-file "e-sink")))
-          (push `(:temp-file . ,temp-file) e-sink-data-alist)
-;; <<<<<<< Le : *old code* >>>>>>>>>>>
-;;           (push '(:temp-file-pos . 0) e-sink-data-alist)
-;; =======  *test code* ==============
-          (push `(:temp-file-pos . ,(+ 0 0)) e-sink-data-alist)
-;; >>>>>>> *end* <<<<<<<<<<<<<<<<<<<<<
+          (push (cons :temp-file temp-file) e-sink-data-alist)
+          (push (cons :temp-file-pos 0) e-sink-data-alist)
           ;; if we use the intervaled timers, then we could get race
           ;; conditions and all kinds of weirdness.
           ;;
           ;; So: just scheduke one and schedule the next one after it's done.
-          (push `(:timer . ,(run-at-time s-sink-refresh-rate nil 'e-sink-insert-from-temp name)) e-sink-data-alist)
+          (push (cons :timer (run-at-time s-sink-refresh-rate nil 'e-sink-insert-from-temp name)) e-sink-data-alist)
           temp-file)
       "e-sink session started")))
 
@@ -228,8 +224,8 @@
                    (propertize (format "{SIG%s}" signal) 'face 'e-sink-marker-face))
          "")
        "\n\n")
-      (push '(:e-sink-in-progress . nil) e-sink-data-alist))))
+      (push (cons :e-sink-in-progress nil) e-sink-data-alist))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-  ;; e-sink.el ends heree
+;; e-sink.el ends heree
