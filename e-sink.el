@@ -101,6 +101,7 @@
 (defvar e-sink-data-alist nil
   "")
 (make-variable-buffer-local 'e-sink-data-alist)
+(put 'e-sink-data-alist 'permanent-local t)
 
 (defvar s-sink-refresh-rate 2
   "polling interval of temp file")
