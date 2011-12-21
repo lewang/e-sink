@@ -11,9 +11,9 @@
 
 ;; Created: Mon Sep  5 00:01:13 2011 (+0800)
 ;; Version: 0.2
-;; Last-Updated: Mon Sep 12 23:23:29 2011 (+0800)
+;; Last-Updated: Thu Dec 22 06:55:46 2011 (+0800)
 ;;           By: Le Wang
-;;     Update #: 63
+;;     Update #: 64
 ;; URL: https://github.com/lewang/e-sink
 ;; Keywords: server shell-integration
 ;; Compatibility: emacs 23+
@@ -32,25 +32,10 @@
 
 ;;; Commentary:
 
-;;
-;; The following applies to the "--cmd" option, which was the default at the time.
-;;
-;;   First of all this thing is slow.  So don't use it if you can help it.  Pipe
-;;   to a file and use Emacs to view that file instead.
-;;
-;;   I have made a couple of optimizations to hopefully make it slightly faster:
-;;
-;;    1. `e-sink.pl' tries to minimize invocations of "emacsclient" by
-;;       maximizing the command-line buffer.
-;;
-;;    2. It also does non-blocking read from the source.  So the data source
-;;       doesn't hang there waiting for emacsclient invocations.
-;;
-
 ;;; Usage:
 
 ;;
-;; For example to pipe diff output to a new buffer named "*| <diff>*"
+;; Pipe diff output to a new buffer named "*| <diff>*"
 ;;
 ;;   $ diff old.txt new.txt | e-sink.pl diff
 ;;
