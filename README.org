@@ -7,3 +7,11 @@ Pipe output of shell command into a Emacs buffer using emacsclient.
 - Perl
 - Emacs 23+
 - emacs server to be started
+
+* Environment Variables:
+
+- EMACSCLIENT
+  The path to the emacsclient binary to run, default: emacsclient
+
+- EMACSCLIENT_ARGS
+  Any additional arguments to be passed to emacsclient, such as parameters to form a TCP connection
