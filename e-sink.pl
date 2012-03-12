@@ -189,7 +189,7 @@ sub main() {
     open(STDIN, "<", File::Spec->devnull());
   };
 
-  for my $s qw(HUP INT PIPE TERM) {
+  for my $s (qw(HUP INT PIPE TERM)) {
     $SIG{$s}= $handler;
   }
 
