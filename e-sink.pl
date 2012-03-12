@@ -69,9 +69,8 @@ sub push_data_to_emacs(\$) {
 }
 
 sub emacs_start_e_sink() {
-  my $elisp= <<AARDVARK;
-  (e-sink-start "${BUFFER_TITLE}" $TEMP_FILE)
-AARDVARK
+  my $elisp= qq/(e-sink-start "$BUFFER_TITLE" $TEMP_FILE)/;
+
 
   if ($TEMP_FILE) {
     $elisp =~ s<([\"\$])><\\$1>g;
