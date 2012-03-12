@@ -7,7 +7,7 @@ use warnings;
 use IO::Select;
 use File::Spec;
 
-use vars qw($EMACSCLIENT $BUFFER_TITLE $TEMP_FILE $TEMP_FILE_H $TEE $CPOUT %SIG_NAME_TABLE $SIG_RECEIVED);
+use vars qw($EMACSCLIENT @EMACSCLIENT_ARGS $BUFFER_TITLE $TEMP_FILE $TEMP_FILE_H $DEBUG $TEE $CPOUT %SIG_NAME_TABLE $SIG_RECEIVED);
 
 sub exit_code_from_sig_name($) {
   my $my_sig = shift;
@@ -50,11 +50,13 @@ sub system_no_stdout(\@) {
   $ret_val;
 }
 
-sub get_command_arr(\$) {
-  my ($data) = @_;
-  ($EMACSCLIENT, '--no-wait', '--eval', <<AARDVARK)
-(e-sink-receive "$BUFFER_TITLE" "$$data")
-AARDVARK
+sub get_command_arr(;\$) {
+  my @result = ($EMACSCLIENT, @EMACSCLIENT_ARGS, '--no-wait', '--eval');
+  if (@_) {
+    my ($data) = @_;
+    push @result, qq/(e-sink-receive "$BUFFER_TITLE" "$$data")/;
+  }
+  return @result;
 }
 
 sub push_data_to_emacs(\$) {
@@ -69,14 +71,13 @@ sub push_data_to_emacs(\$) {
 }
 
 sub emacs_start_e_sink() {
-  my $elisp= <<AARDVARK;
-  (e-sink-start "${BUFFER_TITLE}" $TEMP_FILE)
-AARDVARK
+  my $elisp= qq/(e-sink-start "$BUFFER_TITLE" $TEMP_FILE)/;
+
 
   if ($TEMP_FILE) {
     $elisp =~ s<([\"\$])><\\$1>g;
     $elisp= "\"$elisp\"";
-    my @arr= ($EMACSCLIENT, "--no-wait", "--eval", $elisp);
+    my @arr= (get_command_arr(), $elisp);
     my $str= join(' ', @arr);
 
     ## initialize $TEMP_FILE from Emacs output
@@ -84,12 +85,12 @@ AARDVARK
     if ($? == 0) {
       $TEMP_FILE =~ /.*"([^"]+)".*/;
       $TEMP_FILE = $1;
-      print "debug \$TEMP_FILE is '$TEMP_FILE'";
+      print "debug \$TEMP_FILE is '$TEMP_FILE'\n" if $DEBUG;
     } else {
       die "$str returned with: $!"
     }
   } else {
-    my @arr= ($EMACSCLIENT, "--no-wait", "--eval", $elisp);
+    my @arr= (get_command_arr(), $elisp);
     system_no_stdout(@arr);
   }
 }
@@ -99,9 +100,7 @@ sub emacs_finish_e_sink() {
 
   my $signalStr= $SIG_RECEIVED? "\"$SIG_RECEIVED\"" : "";
 
-  @arr= ($EMACSCLIENT, "--no-wait", "--eval", <<AARDVARK);
-(e-sink-finish "$BUFFER_TITLE" $signalStr)
-AARDVARK
+  @arr= (get_command_arr(), qq/(e-sink-finish "$BUFFER_TITLE" $signalStr)/);
 
   system_no_stdout(@arr);
 }
@@ -131,6 +130,8 @@ sub process_args() {
     } elsif ( $ARGV[$i] eq "--cmd" ) {
       $TEMP_FILE= '';
       delete $ARGV[$i]
+    } elsif ( $ARGV[$i] eq "--debug" ) {
+      $DEBUG= 1;
     } elsif ( $ARGV[$i] =~ /\A-/ ) {
       print STDERR "unexpected option '$ARGV[$i]'\n";
       exit exit_code_from_sig_name('EXIT');
@@ -152,7 +153,8 @@ sub main() {
   my $s = IO::Select->new;
   $s->add(\*STDIN);
 
-  $EMACSCLIENT= "emacsclient";
+  $EMACSCLIENT= $ENV{EMACSCLIENT} || "emacsclient";
+  @EMACSCLIENT_ARGS = $ENV{EMACSCLIENT_ARGS} ? split /\s+/, $ENV{EMACSCLIENT_ARGS} : ();
   $BUFFER_TITLE= ($ARGV[0]? $ARGV[0] : '');
 
   # autoflush
@@ -189,7 +191,7 @@ sub main() {
     open(STDIN, "<", File::Spec->devnull());
   };
 
-  for my $s qw(HUP INT PIPE TERM) {
+  for my $s (qw(HUP INT PIPE TERM)) {
     $SIG{$s}= $handler;
   }
 
