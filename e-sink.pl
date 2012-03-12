@@ -7,7 +7,7 @@ use warnings;
 use IO::Select;
 use File::Spec;
 
-use vars qw($EMACSCLIENT $BUFFER_TITLE $TEMP_FILE $TEMP_FILE_H $TEE $CPOUT %SIG_NAME_TABLE $SIG_RECEIVED);
+use vars qw($EMACSCLIENT $BUFFER_TITLE $TEMP_FILE $TEMP_FILE_H $DEBUG $TEE $CPOUT %SIG_NAME_TABLE $SIG_RECEIVED);
 
 sub exit_code_from_sig_name($) {
   my $my_sig = shift;
@@ -83,7 +83,7 @@ sub emacs_start_e_sink() {
     if ($? == 0) {
       $TEMP_FILE =~ /.*"([^"]+)".*/;
       $TEMP_FILE = $1;
-      print "debug \$TEMP_FILE is '$TEMP_FILE'";
+      print "debug \$TEMP_FILE is '$TEMP_FILE'\n" if $DEBUG;
     } else {
       die "$str returned with: $!"
     }
@@ -130,6 +130,8 @@ sub process_args() {
     } elsif ( $ARGV[$i] eq "--cmd" ) {
       $TEMP_FILE= '';
       delete $ARGV[$i]
+    } elsif ( $ARGV[$i] eq "--debug" ) {
+      $DEBUG= 1;
     } elsif ( $ARGV[$i] =~ /\A-/ ) {
       print STDERR "unexpected option '$ARGV[$i]'\n";
       exit exit_code_from_sig_name('EXIT');
