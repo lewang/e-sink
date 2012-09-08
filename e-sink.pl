@@ -176,10 +176,13 @@ sub main() {
     select STDOUT;
 
   } else {
-    use POSIX qw(ARG_MAX);
     my $garbage= '';
     my $temp= join('', get_command_arr($garbage));
-    $arg_max= ARG_MAX - length($temp) - 1; # 1 for NULL string end
+    my $sys_arg_max= `getconf ARG_MAX`;
+    my $env_str= `env`;
+    chomp($sys_arg_max);
+    # 1 for NULL string end
+    $arg_max= $sys_arg_max - length($env_str) - length($env_str)- 1;
   }
 
   my $handler= sub {
