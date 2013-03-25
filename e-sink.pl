@@ -222,6 +222,7 @@ sub main() {
   $data and push_data_to_emacs( $data );
   $TEMP_FILE_H and close($TEMP_FILE_H);
   emacs_finish_e_sink();
+  unlink $TEMP_FILE or warn "Could not unlink $TEMP_FILE";
   exit exit_code_from_sig_name($SIG_RECEIVED);
 }
 
