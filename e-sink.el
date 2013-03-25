@@ -71,8 +71,6 @@
 
 (eval-when-compile (require 'cl))
 
-(provide 'e-sink)
-
 (defgroup e-sink nil
   "work with e-sink.pl to receive STDOUT piped data"
   :group 'server)
@@ -157,6 +155,7 @@
       (unless (bolp) (insert "\n"))
       (push (cons :e-sink-in-progress nil) e-sink-data-alist))))
 
+(provide 'e-sink)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; e-sink.el ends heree
