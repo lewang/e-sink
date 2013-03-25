@@ -163,8 +163,9 @@
   (with-current-buffer name
     (unless (cdr (assq :e-sink-in-progress e-sink-data-alist))
       (error "Buffer '%s' doesn't have an active e-sink session"))
-    (goto-char (point-max))
-    (insert data))
+    (save-excursion
+      (goto-char (point-max))
+      (insert data)))
   (format "received %i characters." (length data)))
 
 (defun e-sink-insert-from-temp (transformed-buffer-name &optional no-reschedule)
@@ -174,18 +175,19 @@
       (error "Buffer '%s' doesn't have an active e-sink session"))
     (let ((pos-cons (assq :temp-file-pos e-sink-data-alist))
           (timer-cons (assq :timer e-sink-data-alist)))
-      (goto-char (point-max))
-      (setcdr pos-cons
-              (+
-               (cdr pos-cons)
-               (cadr (insert-file-contents (cdr (assq :temp-file e-sink-data-alist)) nil (cdr pos-cons) nil))))
-      (goto-char (point-max))
-      (setcdr timer-cons (if no-reschedule
-                             nil
-                           (run-at-time s-sink-refresh-rate
-                                        nil
-                                        'e-sink-insert-from-temp
-                                        transformed-buffer-name))))))
+      (save-excursion
+	(goto-char (point-max))
+	(setcdr pos-cons
+		(+
+		 (cdr pos-cons)
+		 (cadr (insert-file-contents (cdr (assq :temp-file e-sink-data-alist)) nil (cdr pos-cons) nil))))
+	(goto-char (point-max))
+	(setcdr timer-cons (if no-reschedule
+			       nil
+			     (run-at-time s-sink-refresh-rate
+					  nil
+					  'e-sink-insert-from-temp
+					  transformed-buffer-name)))))))
 
 (defun e-sink-finish (name &optional signal)
   "finish e-sink session."
