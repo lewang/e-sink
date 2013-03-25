@@ -80,6 +80,9 @@
 (make-variable-buffer-local 'e-sink-data-alist)
 (put 'e-sink-data-alist 'permanent-local t)
 
+(defvar s-sink-startup-time 0.2
+  "delay before the very first poll")
+
 (defvar s-sink-refresh-rate 2
   "polling interval of temp file")
 
@@ -105,11 +108,9 @@
           (setq temp-file (if temp-file (make-temp-file "e-sink")))
           (push (cons :temp-file temp-file) e-sink-data-alist)
           (push (cons :temp-file-pos 0) e-sink-data-alist)
-          ;; if we use the intervaled timers, then we could get race
-          ;; conditions and all kinds of weirdness.
-          ;;
-          ;; So: just scheduke one and schedule the next one after it's done.
-          (push (cons :timer (run-at-time s-sink-refresh-rate nil 'e-sink-insert-from-temp name)) e-sink-data-alist)
+          (push (cons :timer (run-at-time s-sink-startup-time s-sink-refresh-rate
+					  'e-sink-insert-from-temp name))
+		e-sink-data-alist)
           temp-file)
       "e-sink session started")))
 
@@ -124,7 +125,7 @@
       (insert data)))
   (format "received %i characters." (length data)))
 
-(defun e-sink-insert-from-temp (transformed-buffer-name &optional no-reschedule)
+(defun e-sink-insert-from-temp (transformed-buffer-name)
   "read some data from temp-file"
   (with-current-buffer transformed-buffer-name
     (unless (cdr (assq :e-sink-in-progress e-sink-data-alist))
@@ -136,14 +137,10 @@
 	(setcdr pos-cons
 		(+
 		 (cdr pos-cons)
-		 (cadr (insert-file-contents (cdr (assq :temp-file e-sink-data-alist)) nil (cdr pos-cons) nil))))
-	(goto-char (point-max))
-	(setcdr timer-cons (if no-reschedule
-			       nil
-			     (run-at-time s-sink-refresh-rate
-					  nil
-					  'e-sink-insert-from-temp
-					  transformed-buffer-name)))))))
+		 (cadr
+		  (insert-file-contents (cdr (assq :temp-file e-sink-data-alist))
+					nil
+					(cdr pos-cons) nil))))))))
 
 (defun e-sink-finish (name &optional signal)
   "finish e-sink session."
@@ -152,7 +149,7 @@
     (let ((timer-cons (assq :timer e-sink-data-alist)))
       (when timer-cons
         (cancel-timer (cdr timer-cons))
-        (e-sink-insert-from-temp name 'no-reschedule))
+        (e-sink-insert-from-temp name))
       (push (cons :e-sink-in-progress nil) e-sink-data-alist))))
 
 (provide 'e-sink)
