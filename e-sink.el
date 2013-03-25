@@ -77,12 +77,6 @@
   "work with e-sink.pl to receive STDOUT piped data"
   :group 'server)
 
-(defface e-sink-marker-face
-  '((t (:inherit font-lock-warning-face)))
-  "face to display chevron markers"
-  :group 'e-sink)
-
-
 (defvar e-sink-data-alist nil
   "")
 (make-variable-buffer-local 'e-sink-data-alist)
@@ -90,36 +84,6 @@
 
 (defvar s-sink-refresh-rate 2
   "polling interval of temp file")
-
-(defun e-sink-float-duration-to-parts (time)
-  "convert `time' in float seconds to a list (days hours minutes seconds_float)"
-  (let* ((time-i (truncate time))
-         (frac (- time time-i))
-         (day-seconds (* 60 60 24))
-         (hour-seconds (* 60 60))
-         (minute-seconds 60))
-    (append (mapcar (lambda (factor)
-                       (prog1 (/ time-i factor)
-                         (setq time-i (% time-i factor))))
-                    (list day-seconds hour-seconds minute-seconds))
-            (list (+ time-i frac)))))
-
-(defun e-sink-format-duration (time-parts)
-  "convert a float-time parts list into a string"
-  (let ((part-names '("d" "h" "m" "s"))
-        (zero-so-far t))
-    (mapconcat (lambda (part-name)
-                 (prog1
-                     (if (and (zerop (car time-parts))
-                              zero-so-far)
-                         ""
-                       (setq zero-so-far nil)
-                       (format (if (floatp (car time-parts)) "%.3f%s" "%i%s")
-                               (car time-parts)
-                               part-name))
-                   (setq time-parts (cdr time-parts))))
-               part-names
-               "")))
 
 (defun e-sink-buffer-name-transform (name)
   ""
@@ -138,11 +102,6 @@
       (push (cons :e-sink-in-progress t) e-sink-data-alist))
     (goto-char (point-max))
     (unless (bolp) (insert "\n"))
-    (insert
-     (propertize "<<<<<" 'face 'e-sink-marker-face)
-     " start: "
-     (format-time-string "%Y-%m-%dT%H:%M:%S")
-     "\n")
     (push (cons :start-time (current-time)) e-sink-data-alist)
     (if temp-file
         (progn
@@ -196,19 +155,6 @@
         (cancel-timer (cdr timer-cons))
         (e-sink-insert-from-temp name 'no-reschedule))
       (unless (bolp) (insert "\n"))
-      (insert
-       (propertize "<<<<<" 'face 'e-sink-marker-face)
-       "   end: "
-       (let* ((start-time (cdr (assq :start-time e-sink-data-alist)))
-              (duration (time-subtract (current-time) start-time))
-              (parts (e-sink-float-duration-to-parts (float-time duration)))
-              (str (e-sink-format-duration parts)))
-         str)
-       (if signal
-           (concat " "
-                   (propertize (format "{SIG%s}" signal) 'face 'e-sink-marker-face))
-         "")
-       "\n\n")
       (push (cons :e-sink-in-progress nil) e-sink-data-alist))))
 
 
