@@ -99,7 +99,6 @@
         (error "Buffer '%s' has an active e-sink session.  Choose another." name)
       (push (cons :e-sink-in-progress t) e-sink-data-alist))
     (goto-char (point-max))
-    (unless (bolp) (insert "\n"))
     (push (cons :start-time (current-time)) e-sink-data-alist)
     (if temp-file
         (progn
@@ -152,7 +151,6 @@
       (when timer-cons
         (cancel-timer (cdr timer-cons))
         (e-sink-insert-from-temp name 'no-reschedule))
-      (unless (bolp) (insert "\n"))
       (push (cons :e-sink-in-progress nil) e-sink-data-alist))))
 
 (provide 'e-sink)
