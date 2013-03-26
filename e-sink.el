@@ -87,10 +87,10 @@
   "polling interval of temp file")
 
 (defun e-sink-buffer-name-transform (name)
-  ""
+  "transform name into a suitable name for a buffer"
   (if (zerop (length name))
-      "*| <e-sink>*"
-    (format "*| %s*" name)))
+      "*e-sink*"
+    (format "*%s*" name)))
 
 ;;;###autoload
 (defun e-sink-start (name &optional temp-file)
