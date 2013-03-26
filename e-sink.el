@@ -95,34 +95,34 @@
 ;;;###autoload
 (defun e-sink-start (name &optional temp-file)
   "start a new sink"
-  (setq name (e-sink-buffer-name-transform name))
-  (pop-to-buffer (get-buffer-create name))
-  (with-current-buffer name
-    (if (cdr (assq :e-sink-in-progress e-sink-data-alist))
-        (error "Buffer '%s' has an active e-sink session.  Choose another." name)
-      (push (cons :e-sink-in-progress t) e-sink-data-alist))
-    (goto-char (point-max))
-    (push (cons :start-time (current-time)) e-sink-data-alist)
-    (if temp-file
-        (progn
-          (setq temp-file (if temp-file (make-temp-file "e-sink")))
-          (push (cons :temp-file temp-file) e-sink-data-alist)
-          (push (cons :temp-file-pos 0) e-sink-data-alist)
-          (push (cons :timer (run-at-time s-sink-startup-time s-sink-refresh-rate
-					  'e-sink-insert-from-temp name))
-		e-sink-data-alist)
-          temp-file)
-      "e-sink session started")))
+  (let ((name (e-sink-buffer-name-transform name)))
+    (pop-to-buffer (get-buffer-create name))
+    (with-current-buffer name
+      (if (cdr (assq :e-sink-in-progress e-sink-data-alist))
+	  (error "Buffer '%s' has an active e-sink session.  Choose another." name)
+	(push (cons :e-sink-in-progress t) e-sink-data-alist))
+      (goto-char (point-max))
+      (push (cons :start-time (current-time)) e-sink-data-alist)
+      (if temp-file
+	  (let ((temp-file (if temp-file (make-temp-file "e-sink"))))
+	    (progn
+	      (push (cons :temp-file temp-file) e-sink-data-alist)
+	      (push (cons :temp-file-pos 0) e-sink-data-alist)
+	      (push (cons :timer (run-at-time s-sink-startup-time s-sink-refresh-rate
+					      'e-sink-insert-from-temp name))
+		    e-sink-data-alist)
+	      temp-file))
+	"e-sink session started"))))
 
 (defun e-sink-receive (name data)
   "receive some data"
-  (setq name (e-sink-buffer-name-transform name))
-  (with-current-buffer name
-    (unless (cdr (assq :e-sink-in-progress e-sink-data-alist))
-      (error "Buffer '%s' doesn't have an active e-sink session"))
-    (save-excursion
-      (goto-char (point-max))
-      (insert data)))
+  (let ((name (e-sink-buffer-name-transform name)))
+    (with-current-buffer name
+      (unless (cdr (assq :e-sink-in-progress e-sink-data-alist))
+	(error "Buffer '%s' doesn't have an active e-sink session"))
+      (save-excursion
+	(goto-char (point-max))
+	(insert data))))
   (format "received %i characters." (length data)))
 
 (defun e-sink-insert-from-temp (transformed-buffer-name)
