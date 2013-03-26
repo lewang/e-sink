@@ -149,13 +149,14 @@
 
 (defun e-sink-finish (name &optional signal)
   "finish e-sink session."
-  (setq name (e-sink-buffer-name-transform name))
-  (with-current-buffer name
-    (let ((timer-cons (assq :timer e-sink-data-alist)))
-      (when timer-cons
-        (cancel-timer (cdr timer-cons))
-        (e-sink-insert-from-temp name))
-      (push (cons :e-sink-in-progress nil) e-sink-data-alist))))
+  (let ((name (e-sink-buffer-name-transform name)))
+    (when (get-buffer name)
+      (with-current-buffer name
+	(let ((timer-cons (assq :timer e-sink-data-alist)))
+	  (when timer-cons
+	    (cancel-timer (cdr timer-cons))
+	    (e-sink-insert-from-temp name))
+	  (push (cons :e-sink-in-progress nil) e-sink-data-alist))))))
 
 (provide 'e-sink)
 
