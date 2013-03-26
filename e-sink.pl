@@ -9,7 +9,7 @@ use File::Spec;
 
 use vars qw($EMACSCLIENT @EMACSCLIENT_ARGS $BUFFER_TITLE $TEMP_FILE $TEMP_FILE_H $DEBUG $TEE $CPOUT %SIG_NAME_TABLE $SIG_RECEIVED);
 
-sub exit_code_from_sig_name($) {
+sub exit_code_from_sig_name {
   my $my_sig = shift;
 
   return 0 unless $my_sig;
@@ -27,7 +27,7 @@ sub exit_code_from_sig_name($) {
   $SIG_NAME_TABLE{$my_sig}? $SIG_NAME_TABLE{$my_sig} + 128 : 128;
 }
 
-sub system_no_stdout(\@) {
+sub system_no_stdout {
   my ($params) = @_;
   open($CPOUT, ">&", "STDOUT");
   open(STDOUT, '>', File::Spec->devnull());
@@ -39,16 +39,16 @@ sub system_no_stdout(\@) {
   $ret_val;
 }
 
-sub get_command_arr(;\$) {
+sub get_command_arr {
   return ($EMACSCLIENT, @EMACSCLIENT_ARGS, '--no-wait', '--eval');
 }
 
-sub push_data_to_emacs(\$) {
+sub push_data_to_emacs {
   my ($data) = @_;
   print $TEMP_FILE_H $$data;
 }
 
-sub emacs_start_e_sink() {
+sub emacs_start_e_sink {
   my $elisp= qq/(e-sink-start "$BUFFER_TITLE" $TEMP_FILE)/;
 
   $elisp =~ s<([\"\$])><\\$1>g;
@@ -67,7 +67,7 @@ sub emacs_start_e_sink() {
   }
 }
 
-sub emacs_finish_e_sink() {
+sub emacs_finish_e_sink {
   my @arr;
 
   my $signalStr= $SIG_RECEIVED? "\"$SIG_RECEIVED\"" : "";
@@ -77,7 +77,7 @@ sub emacs_finish_e_sink() {
   system_no_stdout(@arr);
 }
 
-sub print_help() {
+sub print_help {
   print <<AARDVARK
 Usage: $0 [OPTION]... [buffer-name]
 
@@ -87,7 +87,7 @@ Usage: $0 [OPTION]... [buffer-name]
 AARDVARK
 }
 
-sub process_args() {
+sub process_args {
 
   $TEMP_FILE= 1;
 
@@ -113,7 +113,7 @@ sub process_args() {
   }
 }
 
-sub main() {
+sub main {
 
   process_args();
 
@@ -135,7 +135,7 @@ sub main() {
   my $data= '';
 
   $arg_max= 1;			# write file asap so Emacs can update
-  open($TEMP_FILE_H, ">$TEMP_FILE");
+  open($TEMP_FILE_H, ">", "$TEMP_FILE");
 
   # disable buffering: sacrifice performance for instant gratification
   select $TEMP_FILE_H;
