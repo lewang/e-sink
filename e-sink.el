@@ -127,20 +127,25 @@
 
 (defun e-sink-insert-from-temp (transformed-buffer-name)
   "read some data from temp-file"
-  (with-current-buffer transformed-buffer-name
-    (unless (cdr (assq :e-sink-in-progress e-sink-data-alist))
-      (error "Buffer '%s' doesn't have an active e-sink session"))
-    (let ((pos-cons (assq :temp-file-pos e-sink-data-alist))
-          (timer-cons (assq :timer e-sink-data-alist)))
-      (save-excursion
-	(goto-char (point-max))
-	(setcdr pos-cons
-		(+
-		 (cdr pos-cons)
-		 (cadr
-		  (insert-file-contents (cdr (assq :temp-file e-sink-data-alist))
-					nil
-					(cdr pos-cons) nil))))))))
+  (if (get-buffer transformed-buffer-name)
+      (with-current-buffer transformed-buffer-name
+	(unless (cdr (assq :e-sink-in-progress e-sink-data-alist))
+	  (error "Buffer '%s' doesn't have an active e-sink session"))
+	(let ((pos-cons (assq :temp-file-pos e-sink-data-alist))
+	      (timer-cons (assq :timer e-sink-data-alist)))
+	  (save-excursion
+	    (goto-char (point-max))
+	    (setcdr pos-cons
+		    (+
+		     (cdr pos-cons)
+		     (cadr
+		      (insert-file-contents (cdr (assq :temp-file e-sink-data-alist))
+					    nil
+					    (cdr pos-cons) nil)))))))
+    ;; cancel stray timer
+    (let ((timer-cons (assq :timer e-sink-data-alist)))
+      (when timer-cons
+	(cancel-timer (cdr timer-cons))))))
 
 (defun e-sink-finish (name &optional signal)
   "finish e-sink session."
