@@ -163,4 +163,4 @@
 (provide 'e-sink)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; e-sink.el ends heree
+;; e-sink.el ends here
