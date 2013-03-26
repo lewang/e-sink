@@ -157,8 +157,8 @@
       (with-current-buffer name
 	(let ((timer-cons (assq :timer e-sink-data-alist)))
 	  (when timer-cons
-	    (cancel-timer (cdr timer-cons))
-	    (e-sink-insert-from-temp name))
+	    (cancel-timer (cdr timer-cons)))
+	  (e-sink-insert-from-temp name)
 	  (push (cons :e-sink-in-progress nil) e-sink-data-alist))))))
 
 (provide 'e-sink)
