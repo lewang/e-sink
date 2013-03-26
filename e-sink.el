@@ -113,17 +113,6 @@
 	    temp-file)
 	"e-sink session started"))))
 
-(defun e-sink-receive (name data)
-  "receive some data"
-  (let ((name (e-sink-buffer-name-transform name)))
-    (with-current-buffer name
-      (unless (cdr (assq :e-sink-in-progress e-sink-data-alist))
-	(error "Buffer '%s' doesn't have an active e-sink session"))
-      (save-excursion
-	(goto-char (point-max))
-	(insert data))))
-  (format "received %i characters." (length data)))
-
 (defun e-sink-insert-from-temp (transformed-buffer-name)
   "read some data from temp-file"
   (let ((pos-cons (assq :temp-file-pos e-sink-data-alist))

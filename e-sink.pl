@@ -27,17 +27,6 @@ sub exit_code_from_sig_name($) {
   $SIG_NAME_TABLE{$my_sig}? $SIG_NAME_TABLE{$my_sig} + 128 : 128;
 }
 
-sub esc_chars($) {
-  # will change, for example, a!!a to a\!\!a
-  my ($str) = @_;
-  if ($str) {
-    $str =~ s<([\\;<>\*\|`&\$!#\(\)\[\]\{\}:'"])><\\$1>g;
-  } else {
-    die "why no str?";
-  }
-  $str;
-}
-
 sub system_no_stdout(\@) {
   my ($params) = @_;
   open($CPOUT, ">&", "STDOUT");
@@ -51,47 +40,30 @@ sub system_no_stdout(\@) {
 }
 
 sub get_command_arr(;\$) {
-  my @result = ($EMACSCLIENT, @EMACSCLIENT_ARGS, '--no-wait', '--eval');
-  if (@_) {
-    my ($data) = @_;
-    push @result, qq/(e-sink-receive "$BUFFER_TITLE" "$$data")/;
-  }
-  return @result;
+  return ($EMACSCLIENT, @EMACSCLIENT_ARGS, '--no-wait', '--eval');
 }
 
 sub push_data_to_emacs(\$) {
   my ($data) = @_;
-  my @params= get_command_arr($$data);
-
-  if ($TEMP_FILE) {
-    print $TEMP_FILE_H $$data;
-  } else {
-    system_no_stdout(@params);
-  }
+  print $TEMP_FILE_H $$data;
 }
 
 sub emacs_start_e_sink() {
   my $elisp= qq/(e-sink-start "$BUFFER_TITLE" $TEMP_FILE)/;
 
+  $elisp =~ s<([\"\$])><\\$1>g;
+  $elisp= "\"$elisp\"";
+  my @arr= (get_command_arr(), $elisp);
+  my $str= join(' ', @arr);
 
-  if ($TEMP_FILE) {
-    $elisp =~ s<([\"\$])><\\$1>g;
-    $elisp= "\"$elisp\"";
-    my @arr= (get_command_arr(), $elisp);
-    my $str= join(' ', @arr);
-
-    ## initialize $TEMP_FILE from Emacs output
-    $TEMP_FILE=`$str`;
-    if ($? == 0) {
-      $TEMP_FILE =~ /.*"([^"]+)".*/;
-      $TEMP_FILE = $1;
-      print "debug \$TEMP_FILE is '$TEMP_FILE'\n" if $DEBUG;
-    } else {
-      die "$str returned with: $!"
-    }
+  ## initialize $TEMP_FILE from Emacs output
+  $TEMP_FILE=`$str`;
+  if ($? == 0) {
+    $TEMP_FILE =~ /.*"([^"]+)".*/;
+    $TEMP_FILE = $1;
+    print "debug \$TEMP_FILE is '$TEMP_FILE'\n" if $DEBUG;
   } else {
-    my @arr= (get_command_arr(), $elisp);
-    system_no_stdout(@arr);
+    die "$str returned with: $!"
   }
 }
 
@@ -110,7 +82,6 @@ sub print_help() {
 Usage: $0 [OPTION]... [buffer-name]
 
   --tee output to STDOUT as well
-  --cmd use command-line instead of temporary file
   -h    this screen
 
 AARDVARK
@@ -127,9 +98,6 @@ sub process_args() {
     } elsif ( $ARGV[$i] eq "--tee" ) {
       $TEE= 1;
       delete $ARGV[$i];
-    } elsif ( $ARGV[$i] eq "--cmd" ) {
-      $TEMP_FILE= '';
-      delete $ARGV[$i]
     } elsif ( $ARGV[$i] eq "--debug" ) {
       $DEBUG= 1;
     } elsif ( $ARGV[$i] =~ /\A-/ ) {
@@ -166,24 +134,13 @@ sub main() {
   my $arg_max;
   my $data= '';
 
-  if ($TEMP_FILE) {
-    $arg_max= 1;                # write file asap so Emacs can update
-    open($TEMP_FILE_H, ">$TEMP_FILE");
+  $arg_max= 1;			# write file asap so Emacs can update
+  open($TEMP_FILE_H, ">$TEMP_FILE");
 
-    # disable buffering: sacrifice performance for instant gratification
-    select $TEMP_FILE_H;
-    $|= 1;
-    select STDOUT;
-
-  } else {
-    my $garbage= '';
-    my $temp= join('', get_command_arr($garbage));
-    my $sys_arg_max= `getconf ARG_MAX`;
-    my $env_str= `env`;
-    chomp($sys_arg_max);
-    # 1 for NULL string end
-    $arg_max= $sys_arg_max - length($env_str) - length($env_str)- 1;
-  }
+  # disable buffering: sacrifice performance for instant gratification
+  select $TEMP_FILE_H;
+  $|= 1;
+  select STDOUT;
 
   my $handler= sub {
     $SIG_RECEIVED= shift;
@@ -206,10 +163,6 @@ sub main() {
     }
 
     print $line if $TEE;
-
-    unless ($TEMP_FILE) {
-      $line= esc_chars( $line );
-    }
 
     if ( $data && ( length($data) + length($line) > $arg_max) ) {
       push_data_to_emacs( $data );
