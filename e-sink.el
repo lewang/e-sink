@@ -105,13 +105,12 @@
       (push (cons :start-time (current-time)) e-sink-data-alist)
       (if temp-file
 	  (let ((temp-file (if temp-file (make-temp-file "e-sink"))))
-	    (progn
-	      (push (cons :temp-file temp-file) e-sink-data-alist)
-	      (push (cons :temp-file-pos 0) e-sink-data-alist)
-	      (push (cons :timer (run-at-time s-sink-startup-time s-sink-refresh-rate
-					      'e-sink-insert-from-temp name))
-		    e-sink-data-alist)
-	      temp-file))
+	    (push (cons :temp-file temp-file) e-sink-data-alist)
+	    (push (cons :temp-file-pos 0) e-sink-data-alist)
+	    (push (cons :timer (run-at-time s-sink-startup-time s-sink-refresh-rate
+					    'e-sink-insert-from-temp name))
+		  e-sink-data-alist)
+	    temp-file)
 	"e-sink session started"))))
 
 (defun e-sink-receive (name data)
