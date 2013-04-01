@@ -11,9 +11,9 @@
 
 ;; Created: Mon Sep  5 00:01:13 2011 (+0800)
 ;; Version: 0.2
-;; Last-Updated: Thu Dec 22 06:55:46 2011 (+0800)
+;; Last-Updated: Mon Apr  1 20:28:42 2013 (+0800)
 ;;           By: Le Wang
-;;     Update #: 64
+;;     Update #: 68
 ;; URL: https://github.com/lewang/e-sink
 ;; Keywords: server shell-integration
 ;; Compatibility: emacs 23+
@@ -72,6 +72,8 @@
 (eval-when-compile (require 'cl))
 
 (provide 'e-sink)
+
+(require 'tty-format)
 
 (defgroup e-sink nil
   "work with e-sink.pl to receive STDOUT piped data"
@@ -133,6 +135,8 @@
   (setq name (e-sink-buffer-name-transform name))
   (pop-to-buffer (get-buffer-create name))
   (with-current-buffer name
+    (if (= (point-min) 1)
+        (font-lock-mode 1))
     (if (cdr (assq :e-sink-in-progress e-sink-data-alist))
         (error "Buffer '%s' has an active e-sink session.  Choose another." name)
       (push (cons :e-sink-in-progress t) e-sink-data-alist))
@@ -144,6 +148,7 @@
      (format-time-string "%Y-%m-%dT%H:%M:%S")
      "\n")
     (push (cons :start-time (current-time)) e-sink-data-alist)
+    (push (cons :start-pos (point)) e-sink-data-alist)
     (if temp-file
         (progn
           (setq temp-file (if temp-file (make-temp-file "e-sink")))
@@ -196,6 +201,11 @@
         (cancel-timer (cdr timer-cons))
         (e-sink-insert-from-temp name 'no-reschedule))
       (unless (bolp) (insert "\n"))
+      (let* ((start (cdr (assq :start-pos e-sink-data-alist)))
+             (finish (progn
+                       (ansi-format-decode start (point))
+                       (point)))))
+      (push (cons :finish-pos (point)) e-sink-data-alist)
       (insert
        (propertize "<<<<<" 'face 'e-sink-marker-face)
        "   end: "
